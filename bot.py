@@ -4,8 +4,11 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 TOKEN = os.getenv("TOKEN")
 
-# 🔘 MENIU
-menu = ReplyKeyboardMarkup(
+# stocare limbă simplă în memorie
+user_lang = {}
+
+# 🔘 Meniu RO
+menu_ro = ReplyKeyboardMarkup(
     [
         ["📦 Produse", "💰 Prețuri"],
         ["📞 Contact", "ℹ️ Info"]
@@ -13,61 +16,75 @@ menu = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-ADMIN_ID = 123456789  # 👈 pune ID-ul tău Telegram aici
+# 🔘 Meniu RU
+menu_ru = ReplyKeyboardMarkup(
+    [
+        ["📦 Товары", "💰 Цены"],
+        ["📞 Контакты", "ℹ️ Инфо"]
+    ],
+    resize_keyboard=True
+)
 
-# /start
+# /start - alegere limbă
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Salut! Bine ai venit la botul meu",
-        reply_markup=menu
+    keyboard = ReplyKeyboardMarkup(
+        [["🇷🇴 Română", "🇷🇺 Русский"]],
+        resize_keyboard=True
     )
 
-# mesaje
+    await update.message.reply_text(
+        "🌍 Alege limba / Выберите язык:",
+        reply_markup=keyboard
+    )
+
+# handler principal
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
     text = update.message.text
 
-    if text == "📦 Produse":
-        await update.message.reply_text(
-            "📦 Servicii disponibile:\n"
-            "- Crypto exchange\n"
-            "- Servicii digitale\n"
-            "- Consultanță"
-        )
-
-    elif text == "💰 Prețuri":
-        await update.message.reply_text(
-            "💰 Prețuri:\n"
-            "- Depinde de volum\n"
-            "- Scrie-mi pentru ofertă"
-        )
-
-    elif text == "📞 Contact":
-        await update.message.reply_text(
-            "📞 Contact admin:\n@username_tau"
-        )
-
-    elif text == "ℹ️ Info":
-        await update.message.reply_text(
-            "ℹ️ Acest bot este creat pentru servicii rapide și automatizare."
-        )
-
-    else:
-        await update.message.reply_text("Alege o opțiune din meniu 👇")
-
-# admin
-async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Nu ai acces")
+    # 🌍 alegere limbă
+    if text == "🇷🇴 Română":
+        user_lang[user_id] = "ro"
+        await update.message.reply_text("✔ Limba selectată: Română", reply_markup=menu_ro)
         return
 
-    await update.message.reply_text("🔐 Admin panel activ")
+    if text == "🇷🇺 Русский":
+        user_lang[user_id] = "ru"
+        await update.message.reply_text("✔ Выбран язык: Русский", reply_markup=menu_ru)
+        return
 
-# main
+    lang = user_lang.get(user_id, "ro")
+
+    # 🇷🇴 ROMÂNĂ
+    if lang == "ro":
+        if text == "📦 Produse":
+            await update.message.reply_text("📦 Servicii: crypto, digital, consultanță")
+        elif text == "💰 Prețuri":
+            await update.message.reply_text("💰 Prețuri în funcție de serviciu")
+        elif text == "📞 Contact":
+            await update.message.reply_text("📞 Contact: @username_tau")
+        elif text == "ℹ️ Info":
+            await update.message.reply_text("ℹ️ Bot automat pentru servicii")
+        else:
+            await update.message.reply_text("Alege o opțiune din meniu 👇")
+
+    # 🇷🇺 RUSĂ
+    else:
+        if text == "📦 Товары":
+            await update.message.reply_text("📦 Услуги: крипто, цифровые, консультации")
+        elif text == "💰 Цены":
+            await update.message.reply_text("💰 Цены зависят от услуги")
+        elif text == "📞 Контакты":
+            await update.message.reply_text("📞 Контакт: @username")
+        elif text == "ℹ️ Инфо":
+            await update.message.reply_text("ℹ️ Автоматический бот услуг")
+        else:
+            await update.message.reply_text("Выберите опцию из меню 👇")
+
 def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("admin", admin))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot pornit...")
