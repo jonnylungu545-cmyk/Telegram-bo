@@ -1,6 +1,13 @@
 import os
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+    CallbackQueryHandler
+)
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 8777102322
@@ -40,29 +47,57 @@ menu_ru = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# /start
+# 🚀 START CU BUTON
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     users.add(user_id)
 
+    keyboard = [
+        [InlineKeyboardButton("🚀 START", callback_data="start_btn")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     await update.message.reply_text(
-        "🌍 Alege limba / Выберите язык:",
-        reply_markup=lang_menu
+        "🌍 Apasă START pentru a continua",
+        reply_markup=reply_markup
     )
 
-# ADMIN PANEL
+# 🔘 BUTON HANDLER
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "start_btn":
+        await query.edit_message_text(
+            "✔ Bot activ!\n🌍 Alege limba:",
+            reply_markup=lang_menu
+        )
+
+    elif query.data.startswith("pay_"):
+        user_id = query.from_user.id
+
+        await query.edit_message_text(
+            "⏳ Plata a fost înregistrată!\n"
+            "⏱ Verificare în 5-10 minute...\n\n"
+            "✔ Vei primi confirmare după verificare."
+        )
+
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"💰 PLATĂ NOUĂ!\nUser ID: {user_id}\nVerifică plata manual."
+        )
+
+# 🔐 ADMIN
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         await update.message.reply_text("❌ Acces interzis")
         return
 
     await update.message.reply_text(
-        "🔐 ADMIN PANEL\n"
-        "Comenzi:\n"
-        "/broadcast mesaj"
+        "🔐 ADMIN PANEL\nComenzi:\n/broadcast mesaj"
     )
 
-# BROADCAST
+# 📢 BROADCAST
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
@@ -86,29 +121,25 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # 💳 PLĂȚI
 async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    user_id = update.message.from_user.id
 
-    if text == "💳 Plată":
-        await update.message.reply_text(
-            "💳 Metode de plată:\n\n"
-            f"📱 MIA Transfer: {MIA_PHONE}\n"
-            f"🏧 Paynet: {MIA_PHONE}\n"
-            f"🏦 RunPay: {MIA_PHONE}\n"
-            f"💠 Bpay Account: {BPAY_ACCOUNT}\n\n"
-            "💡 După plată revii aici cu dovada."
-        )
+    keyboard = [
+        [InlineKeyboardButton("✅ Am efectuat plata", callback_data=f"pay_{user_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    elif text == "💳 Оплата":
-        await update.message.reply_text(
-            "💳 Способы оплаты:\n\n"
-            f"📱 MIA: {MIA_PHONE}\n"
-            f"🏧 Paynet: {MIA_PHONE}\n"
-            f"🏦 RunPay: {MIA_PHONE}\n"
-            f"💠 Bpay: {BPAY_ACCOUNT}\n\n"
-            "💡 После оплаты отправьте подтверждение."
-        )
+    text = (
+        "💳 Metode de plată:\n\n"
+        f"📱 MIA Transfer: {MIA_PHONE}\n"
+        f"🏧 Paynet: {MIA_PHONE}\n"
+        f"🏦 RunPay: {MIA_PHONE}\n"
+        f"💠 Bpay Account: {BPAY_ACCOUNT}\n\n"
+        "💡 După plată apasă butonul de mai jos."
+    )
 
-# HANDLER PRINCIPAL
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+# 💬 HANDLER PRINCIPAL
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
@@ -126,7 +157,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lang = user_lang.get(user_id, "ro")
 
-    # ROMÂNĂ
     if lang == "ro":
         if text == "📦 Produse":
             await update.message.reply_text("📦 Servicii: crypto, digital, consultanță")
@@ -143,7 +173,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("Alege din meniu 👇")
 
-    # RUSĂ
     else:
         if text == "📦 Товары":
             await update.message.reply_text("📦 Услуги: крипто, цифровые, консультации")
@@ -160,13 +189,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text("Выберите из меню 👇")
 
-# MAIN
+# 🚀 MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin))
     app.add_handler(CommandHandler("broadcast", broadcast))
+    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot pornit...")
