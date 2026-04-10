@@ -1,4 +1,6 @@
 import os
+import json
+import requests
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -12,82 +14,81 @@ from telegram.ext import (
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 8777102322
 
-users = set()
+DB_FILE = "payments.json"
+
 user_lang = {}
 user_step = {}
-payments_history = {}
 
-# 💰 CONFIG
-MIA_PHONE = "067268243"
-BPAY_ACCOUNT = "11582218"
-
-BTC_RATE = 42000
-LTC_RATE = 70
 USD_TO_LEI = 20.50
 COMMISSION = 1.01
 
-# 🔘 LIMBĂ
+
+# 💱 LIVE CRYPTO
+def get_crypto_rates():
+    try:
+        btc = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").json()
+        ltc = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=LTCUSDT").json()
+
+        return {
+            "BTC": float(btc["price"]),
+            "LTC": float(ltc["price"])
+        }
+    except:
+        return {"BTC": 42000, "LTC": 70}
+
+
+# 💾 DB
+def load_db():
+    if not os.path.exists(DB_FILE):
+        return {}
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
+
+
+def save_db(db):
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f, indent=2)
+
+
+# 🔘 MENIU
 lang_menu = ReplyKeyboardMarkup(
     [["🇷🇴 Română", "🇷🇺 Русский"]],
     resize_keyboard=True
 )
 
 menu_ro = ReplyKeyboardMarkup(
-    [
-        ["📦 Produse", "💰 Prețuri"],
-        ["📞 Contact", "ℹ️ Info"],
-        ["💳 Plată"],
-        ["🔐 Admin"]
-    ],
+    [["💳 Plată", "📜 Istoric", "📊 Dashboard"]],
     resize_keyboard=True
 )
 
-menu_ru = ReplyKeyboardMarkup(
-    [
-        ["📦 Товары", "💰 Цены"],
-        ["📞 Контакты", "ℹ️ Инфо"],
-        ["💳 Оплата"],
-        ["🔐 Админ"]
-    ],
-    resize_keyboard=True
-)
 
 # 🚀 START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    users.add(update.message.from_user.id)
-
     keyboard = [[InlineKeyboardButton("🚀 START", callback_data="start_btn")]]
+
     await update.message.reply_text(
         "🌍 Apasă START",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
 # 🔘 CALLBACK
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
+    q = update.callback_query
+    await q.answer()
+    user_id = q.from_user.id
 
-    if query.data == "start_btn":
-        await query.edit_message_text("✔ Alege limba:", reply_markup=lang_menu)
+    if q.data == "start_btn":
+        await q.edit_message_text("✔ Alege limba:", reply_markup=lang_menu)
 
-    elif query.data == "crypto_btc":
+    elif q.data == "crypto_btc":
         user_step[user_id] = "BTC"
-        await query.edit_message_text("✍ Introdu suma BTC (ex: 0.01)")
+        await q.edit_message_text("✍ Introdu suma BTC")
 
-    elif query.data == "crypto_ltc":
+    elif q.data == "crypto_ltc":
         user_step[user_id] = "LTC"
-        await query.edit_message_text("✍ Introdu suma LTC (ex: 1.5)")
+        await q.edit_message_text("✍ Introdu suma LTC")
 
-    elif query.data.startswith("pay_"):
-        await query.edit_message_text(
-            "⏳ Plata înregistrată\nVerificare 5-10 min"
-        )
-
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"💰 PLATĂ\nUser: {user_id}"
-        )
 
 # 💳 PLĂȚI
 async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -103,6 +104,41 @@ async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
+# 📊 DASHBOARD
+async def dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id != ADMIN_ID:
+        return
+
+    db = load_db()
+
+    users = len(db)
+    total = sum(len(v) for v in db.values())
+
+    await update.message.reply_text(
+        f"📊 DASHBOARD\n\n👤 Users: {users}\n💰 Plăți: {total}"
+    )
+
+
+# 📜 ISTORIC
+async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    db = load_db()
+    uid = str(update.message.from_user.id)
+
+    data = db.get(uid, [])
+
+    if not data:
+        await update.message.reply_text("📭 Fără plăți")
+        return
+
+    msg = "📜 Istoric:\n\n"
+
+    for p in data[-10:]:
+        msg += f"{p['amount']} {p['crypto']} → {p['lei']:.2f} MDL\n"
+
+    await update.message.reply_text(msg)
+
+
 # 💬 MESSAGE HANDLER
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -112,11 +148,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "🇷🇴 Română":
         user_lang[user_id] = "ro"
         await update.message.reply_text("✔ Română", reply_markup=menu_ro)
-        return
-
-    if text == "🇷🇺 Русский":
-        user_lang[user_id] = "ru"
-        await update.message.reply_text("✔ Русский", reply_markup=menu_ru)
         return
 
     # 🔥 CRYPTO INPUT
@@ -129,17 +160,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         crypto = user_step[user_id]
 
-        rate = BTC_RATE if crypto == "BTC" else LTC_RATE
+        rates = get_crypto_rates()
+        price = rates[crypto]
 
-        usd = amount * rate
+        usd = amount * price
         lei = usd * USD_TO_LEI * COMMISSION
 
-        payments_history.setdefault(user_id, []).append({
+        db = load_db()
+        uid = str(user_id)
+
+        if uid not in db:
+            db[uid] = []
+
+        db[uid].append({
             "crypto": crypto,
             "amount": amount,
             "usd": usd,
             "lei": lei
         })
+
+        save_db(db)
 
         user_step.pop(user_id)
 
@@ -147,32 +187,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Conversie:\n"
             f"{amount} {crypto}\n"
             f"{usd:.2f} USD\n"
-            f"{lei:.2f} MDL (cu 1% comision)\n\n"
+            f"{lei:.2f} MDL\n\n"
             "⏳ Verificare 5-10 min"
         )
 
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"💰 CRYPTO\n{amount} {crypto}\n≈ {lei:.2f} MDL"
+            text=f"💰 CRYPTO\n{amount} {crypto}\n≈ {lei:.2f} MDL\nUser: {user_id}"
         )
         return
 
-    lang = user_lang.get(user_id, "ro")
-
-    if lang == "ro":
-        if text == "💳 Plată":
-            await payments(update, context)
 
 # 🚀 MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("dashboard", dashboard))
+    app.add_handler(CommandHandler("history", history))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot pornit...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
