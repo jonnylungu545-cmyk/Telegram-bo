@@ -62,32 +62,43 @@ menu_ro = ReplyKeyboardMarkup(
 )
 
 
-# 🚀 START
+# 🚀 START (FIXAT)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("🚀 START", callback_data="start_btn")]]
+    keyboard = [
+        [InlineKeyboardButton("🚀 START", callback_data="start_btn")]
+    ]
 
     await update.message.reply_text(
-        "🌍 Apasă START",
+        "🌍 Bun venit!\nApasă START pentru a continua",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# 🔘 CALLBACK
+# 🔘 CALLBACK (FIXAT)
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     user_id = q.from_user.id
 
+    print("CLICK:", q.data)
+
     if q.data == "start_btn":
-        await q.edit_message_text("✔ Alege limba:", reply_markup=lang_menu)
+        await q.edit_message_text(
+            "✔ Alege limba:",
+            reply_markup=lang_menu
+        )
+        user_lang[user_id] = "ro"
+        return
 
     elif q.data == "crypto_btc":
         user_step[user_id] = "BTC"
-        await q.edit_message_text("✍ Introdu suma BTC")
+        await q.edit_message_text("✍ Introdu suma BTC (ex: 0.01)")
+        return
 
     elif q.data == "crypto_ltc":
         user_step[user_id] = "LTC"
-        await q.edit_message_text("✍ Introdu suma LTC")
+        await q.edit_message_text("✍ Introdu suma LTC (ex: 1.5)")
+        return
 
 
 # 💳 PLĂȚI
