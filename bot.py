@@ -4,6 +4,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 TOKEN = os.getenv("TOKEN")
 
+ADMIN_ID = 8777102322
+
 # stocare limbă simplă în memorie
 user_lang = {}
 
