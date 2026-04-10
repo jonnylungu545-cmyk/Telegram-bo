@@ -8,6 +8,10 @@ ADMIN_ID = 8777102322
 users = set()
 user_lang = {}
 
+# 💰 CONFIG PLĂȚI
+MIA_PHONE = "067268243"
+BPAY_ACCOUNT = "11582218"
+
 # 🔘 MENIU LIMBĂ
 lang_menu = ReplyKeyboardMarkup(
     [["🇷🇴 Română", "🇷🇺 Русский"]],
@@ -19,6 +23,7 @@ menu_ro = ReplyKeyboardMarkup(
     [
         ["📦 Produse", "💰 Prețuri"],
         ["📞 Contact", "ℹ️ Info"],
+        ["💳 Plată"],
         ["🔐 Admin"]
     ],
     resize_keyboard=True
@@ -29,6 +34,7 @@ menu_ru = ReplyKeyboardMarkup(
     [
         ["📦 Товары", "💰 Цены"],
         ["📞 Контакты", "ℹ️ Инфо"],
+        ["💳 Оплата"],
         ["🔐 Админ"]
     ],
     resize_keyboard=True
@@ -52,7 +58,7 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "🔐 ADMIN PANEL\n"
-        "Comenzi disponibile:\n"
+        "Comenzi:\n"
         "/broadcast mesaj"
     )
 
@@ -76,14 +82,38 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    await update.message.reply_text(f"✔ Trimis la {sent} utilizatori")
+    await update.message.reply_text(f"✔ Trimise la {sent} utilizatori")
+
+# 💳 PLĂȚI
+async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "💳 Plată":
+        await update.message.reply_text(
+            "💳 Metode de plată:\n\n"
+            f"📱 MIA Transfer: {MIA_PHONE}\n"
+            f"🏧 Paynet: {MIA_PHONE}\n"
+            f"🏦 RunPay: {MIA_PHONE}\n"
+            f"💠 Bpay Account: {BPAY_ACCOUNT}\n\n"
+            "💡 După plată revii aici cu dovada."
+        )
+
+    elif text == "💳 Оплата":
+        await update.message.reply_text(
+            "💳 Способы оплаты:\n\n"
+            f"📱 MIA: {MIA_PHONE}\n"
+            f"🏧 Paynet: {MIA_PHONE}\n"
+            f"🏦 RunPay: {MIA_PHONE}\n"
+            f"💠 Bpay: {BPAY_ACCOUNT}\n\n"
+            "💡 После оплаты отправьте подтверждение."
+        )
 
 # HANDLER PRINCIPAL
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
 
-    # alegere limbă
+    # limbă
     if text == "🇷🇴 Română":
         user_lang[user_id] = "ro"
         await update.message.reply_text("✔ Limba: Română", reply_markup=menu_ro)
@@ -106,6 +136,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("📞 Contact: @username")
         elif text == "ℹ️ Info":
             await update.message.reply_text("ℹ️ Bot automat servicii")
+        elif text == "💳 Plată":
+            await payments(update, context)
         elif text == "🔐 Admin":
             await admin(update, context)
         else:
@@ -121,12 +153,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("📞 Контакт: @username")
         elif text == "ℹ️ Инфо":
             await update.message.reply_text("ℹ️ Авто бот услуг")
+        elif text == "💳 Оплата":
+            await payments(update, context)
         elif text == "🔐 Админ":
             await admin(update, context)
         else:
             await update.message.reply_text("Выберите из меню 👇")
 
-# MAIN + HANDLERS
+# MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
 
