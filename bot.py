@@ -2,14 +2,7 @@ import os
 import json
 import requests
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-    CallbackQueryHandler
-)
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 8777102322
@@ -22,6 +15,9 @@ user_step = {}
 USD_TO_LEI = 20.50
 COMMISSION = 1.01
 
+# 💳 DATE PLATĂ
+MIA_PHONE = "067268243"
+BPAY_ACCOUNT = "11582218"
 
 # 💱 LIVE CRYPTO
 def get_crypto_rates():
@@ -57,67 +53,74 @@ lang_menu = ReplyKeyboardMarkup(
 )
 
 menu_ro = ReplyKeyboardMarkup(
-    [["💳 Plată", "📜 Istoric", "📊 Dashboard"]],
+    [
+        ["💳 Plată", "📜 Istoric"],
+        ["📊 Dashboard", "💱 Calculator"]
+    ],
     resize_keyboard=True
 )
 
-
-# 🚀 START (FIX FINAL)
+# 🚀 START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("🚀 START", callback_data="start_btn")]
-    ]
-
+    keyboard = [[InlineKeyboardButton("🚀 START", callback_data="start_btn")]]
     await update.message.reply_text(
-        "🌍 Bun venit!\nApasă START pentru a continua",
+        "🔥 Bun venit!\nApasă START",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-# 🔘 CALLBACK (FIXAT 100%)
+# 🔘 CALLBACK
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    q = update.callback_query
+    await q.answer()
 
-    data = query.data
-    user_id = query.from_user.id
+    user_id = q.from_user.id
+    data = q.data
 
-    print("🔥 CALLBACK:", data)
+    if data == "start_btn":
+        await q.message.reply_text("🌍 Alege limba:", reply_markup=lang_menu)
 
-    try:
-        if data == "start_btn":
-            await query.message.reply_text(
-                "✔ Alege limba:",
-                reply_markup=lang_menu
-            )
-            user_lang[user_id] = "ro"
-            return
+    elif data == "crypto_btc":
+        user_step[user_id] = "BTC"
+        await q.message.reply_text("✍ Introdu suma BTC")
 
-        elif data == "crypto_btc":
-            user_step[user_id] = "BTC"
-            await query.message.reply_text("✍ Introdu suma BTC (ex: 0.01)")
-            return
+    elif data == "crypto_ltc":
+        user_step[user_id] = "LTC"
+        await q.message.reply_text("✍ Introdu suma LTC")
 
-        elif data == "crypto_ltc":
-            user_step[user_id] = "LTC"
-            await query.message.reply_text("✍ Introdu suma LTC (ex: 1.5)")
-            return
+    elif data == "paid":
+        await q.message.reply_text(
+            "✅ Plata a fost trimisă!\n⏳ Se verifică în 5-10 minute"
+        )
 
-    except Exception as e:
-        print("❌ CALLBACK ERROR:", e)
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"💰 CONFIRMARE PLATĂ\nUser: {user_id}"
+        )
 
 
 # 💳 PLĂȚI
 async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rates = get_crypto_rates()
+
     keyboard = [
         [
             InlineKeyboardButton("₿ BTC", callback_data="crypto_btc"),
             InlineKeyboardButton("Ł LTC", callback_data="crypto_ltc")
-        ]
+        ],
+        [InlineKeyboardButton("✅ Am plătit", callback_data="paid")]
     ]
 
     await update.message.reply_text(
-        "💳 Alege crypto:",
+        f"💳 Metode de plată:\n\n"
+        f"📱 MIA Transfer: {MIA_PHONE}\n"
+        f"🏧 Paynet: {MIA_PHONE}\n"
+        f"🏦 RunPay: {MIA_PHONE}\n"
+        f"💠 Bpay: {BPAY_ACCOUNT}\n\n"
+        f"📊 Curs live:\n"
+        f"BTC: {rates['BTC']:.2f}$\n"
+        f"LTC: {rates['LTC']:.2f}$\n\n"
+        "👇 Alege crypto sau confirmă plata:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -128,7 +131,6 @@ async def dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     db = load_db()
-
     users = len(db)
     total = sum(len(v) for v in db.values())
 
@@ -156,6 +158,12 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
 
 
+# 💱 CALCULATOR
+async def calculator(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_step[update.message.from_user.id] = "CALC"
+    await update.message.reply_text("✍ Introdu suma în USD")
+
+
 # 💬 MESSAGE HANDLER
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -166,7 +174,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✔ Română", reply_markup=menu_ro)
         return
 
-    # 🔥 CRYPTO INPUT
+    # calculator
+    if user_step.get(user_id) == "CALC":
+        try:
+            usd = float(text)
+        except:
+            await update.message.reply_text("❌ Număr invalid")
+            return
+
+        lei = usd * USD_TO_LEI
+        await update.message.reply_text(f"💱 {usd}$ = {lei:.2f} MDL")
+
+        user_step.pop(user_id)
+        return
+
+    # crypto
     if user_id in user_step:
         try:
             amount = float(text)
@@ -175,20 +197,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         crypto = user_step[user_id]
-
         rates = get_crypto_rates()
-        price = rates[crypto]
 
-        usd = amount * price
+        usd = amount * rates[crypto]
         lei = usd * USD_TO_LEI * COMMISSION
 
         db = load_db()
         uid = str(user_id)
 
-        if uid not in db:
-            db[uid] = []
-
-        db[uid].append({
+        db.setdefault(uid, []).append({
             "crypto": crypto,
             "amount": amount,
             "usd": usd,
@@ -201,9 +218,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"💰 Conversie:\n"
             f"{amount} {crypto}\n"
-            f"{usd:.2f} USD\n"
+            f"{usd:.2f}$\n"
             f"{lei:.2f} MDL\n\n"
-            "⏳ Verificare 5-10 min"
+            "⏳ Așteaptă confirmarea"
         )
 
         await context.bot.send_message(
@@ -212,18 +229,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # meniu
+    if text == "💳 Plată":
+        await payments(update, context)
+
+    elif text == "📜 Istoric":
+        await history(update, context)
+
+    elif text == "📊 Dashboard":
+        await dashboard(update, context)
+
+    elif text == "💱 Calculator":
+        await calculator(update, context)
+
+    else:
+        await update.message.reply_text("Alege din meniu 👇")
+
 
 # 🚀 MAIN
 def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("dashboard", dashboard))
-    app.add_handler(CommandHandler("history", history))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("BOT PORNIT")
+    print("🔥 BOT PORNIT")
     app.run_polling()
 
 
