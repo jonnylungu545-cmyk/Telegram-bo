@@ -1,12 +1,17 @@
+import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-TOKEN ="8680588423:AAHjSd5TtCcw7bi8kDpq3lIgJX1lF6jw1Dw "
+TOKEN = os.getenv("TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Salut 👋 botul funcționează")
 
 def main():
+    if not TOKEN:
+        print("TOKEN lipsă!")
+        return
+
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
