@@ -62,7 +62,7 @@ menu_ro = ReplyKeyboardMarkup(
 )
 
 
-# 🚀 START (FIXAT)
+# 🚀 START (FIX FINAL)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🚀 START", callback_data="start_btn")]
@@ -74,31 +74,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# 🔘 CALLBACK (FIXAT)
+# 🔘 CALLBACK (FIXAT 100%)
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    user_id = q.from_user.id
+    query = update.callback_query
+    await query.answer()
 
-    print("CLICK:", q.data)
+    data = query.data
+    user_id = query.from_user.id
 
-    if q.data == "start_btn":
-        await q.edit_message_text(
-            "✔ Alege limba:",
-            reply_markup=lang_menu
-        )
-        user_lang[user_id] = "ro"
-        return
+    print("🔥 CALLBACK:", data)
 
-    elif q.data == "crypto_btc":
-        user_step[user_id] = "BTC"
-        await q.edit_message_text("✍ Introdu suma BTC (ex: 0.01)")
-        return
+    try:
+        if data == "start_btn":
+            await query.message.reply_text(
+                "✔ Alege limba:",
+                reply_markup=lang_menu
+            )
+            user_lang[user_id] = "ro"
+            return
 
-    elif q.data == "crypto_ltc":
-        user_step[user_id] = "LTC"
-        await q.edit_message_text("✍ Introdu suma LTC (ex: 1.5)")
-        return
+        elif data == "crypto_btc":
+            user_step[user_id] = "BTC"
+            await query.message.reply_text("✍ Introdu suma BTC (ex: 0.01)")
+            return
+
+        elif data == "crypto_ltc":
+            user_step[user_id] = "LTC"
+            await query.message.reply_text("✍ Introdu suma LTC (ex: 1.5)")
+            return
+
+    except Exception as e:
+        print("❌ CALLBACK ERROR:", e)
 
 
 # 💳 PLĂȚI
@@ -155,7 +161,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
 
-    # limbă
     if text == "🇷🇴 Română":
         user_lang[user_id] = "ro"
         await update.message.reply_text("✔ Română", reply_markup=menu_ro)
@@ -191,7 +196,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
 
         save_db(db)
-
         user_step.pop(user_id)
 
         await update.message.reply_text(
@@ -219,7 +223,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot pornit...")
+    print("BOT PORNIT")
     app.run_polling()
 
 
