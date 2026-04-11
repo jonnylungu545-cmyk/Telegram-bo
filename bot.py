@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import random
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -26,8 +27,13 @@ COMMISSION = 1.01
 MIA_PHONE = "067268243"
 BPAY_ACCOUNT = "11582218"
 
+ADMIN_CONTACT = "@fastobmen43"
 
-# 🌍 TEXTE MULTILIMBĂ
+# 🔥 FAKE COUNTER
+fake_counter = random.randint(120, 350)
+
+
+# 🌍 TEXTE
 TEXTS = {
     "ro": {
         "menu": "✔ Română",
@@ -36,7 +42,9 @@ TEXTS = {
         "send_address": "📩 Trimite:\n\n- adresă {crypto}\n- suma (ex: 0.5)",
         "wrong_format": "❌ Format greșit\nEx: ADRESA 0.5",
         "you_get": "💰 Vei primi:\n{amount} {crypto}\n\n💵 De plătit: {lei:.2f} MDL\n\n📱 MIA: {mia}\n🏦 Bpay: {bpay}\n\n👇 După plată apasă:",
-        "paid_btn": "✅ Am plătit"
+        "paid_btn": "✅ Am plătit",
+        "info": "ℹ️ Lucrăm 24/24\n💱 Cel mai bun curs din Moldova\n⚡ Procesare rapidă\n🏦 MIA / BPay / RunPay",
+        "support": f"📞 Contact: {ADMIN_CONTACT}"
     },
     "ru": {
         "menu": "✔ Русский",
@@ -45,7 +53,9 @@ TEXTS = {
         "send_address": "📩 Отправь:\n\n- адрес {crypto}\n- сумму (например: 0.5)",
         "wrong_format": "❌ Неверный формат\nПример: АДРЕС 0.5",
         "you_get": "💰 Ты получишь:\n{amount} {crypto}\n\n💵 К оплате: {lei:.2f} MDL\n\n📱 MIA: {mia}\n🏦 Bpay: {bpay}\n\n👇 После оплаты нажми:",
-        "paid_btn": "✅ Я оплатил"
+        "paid_btn": "✅ Я оплатил",
+        "info": "ℹ️ Работаем 24/7\n💱 Лучший курс\n⚡ Быстрая обработка\n🏦 MIA / BPay / RunPay",
+        "support": f"📞 Контакт: {ADMIN_CONTACT}"
     }
 }
 
@@ -55,16 +65,12 @@ def t(user_id, key):
     return TEXTS[lang][key]
 
 
-# 💱 LIVE CRYPTO
+# 💱 CRYPTO
 def get_crypto_rates():
     try:
         btc = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT").json()
         ltc = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=LTCUSDT").json()
-
-        return {
-            "BTC": float(btc["price"]),
-            "LTC": float(ltc["price"])
-        }
+        return {"BTC": float(btc["price"]), "LTC": float(ltc["price"])}
     except:
         return {"BTC": 42000, "LTC": 70}
 
@@ -89,12 +95,18 @@ lang_menu = ReplyKeyboardMarkup(
 )
 
 menu_ro = ReplyKeyboardMarkup(
-    [["💳 Schimb Crypto", "📜 Istoric"]],
+    [
+        ["💳 Schimb Crypto", "📜 Istoric"],
+        ["ℹ️ Info", "📞 Suport"]
+    ],
     resize_keyboard=True
 )
 
 menu_ru = ReplyKeyboardMarkup(
-    [["💳 Обмен крипто", "📜 История"]],
+    [
+        ["💳 Обмен крипто", "📜 История"],
+        ["ℹ️ Инфо", "📞 Поддержка"]
+    ],
     resize_keyboard=True
 )
 
@@ -103,9 +115,23 @@ menu_ru = ReplyKeyboardMarkup(
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("🚀 START", callback_data="start_btn")]]
 
+    global fake_counter
+    fake_counter += random.randint(1, 5)
+
+    text = (
+        f"💱 *EXCHANGE CRYPTO 24/7*\n\n"
+        f"🚀 Bine ai venit!\n\n"
+        f"💸 Tranzacții azi: *{fake_counter}+*\n"
+        f"⚡ Rapid (5-10 min)\n"
+        f"🏦 MIA / BPay / RunPay\n\n"
+        f"🔒 Sigur • Automat\n\n"
+        f"👇 Apasă START"
+    )
+
     await update.message.reply_text(
-        "🔥 Bun venit!\nApasă START",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
     )
 
 
@@ -116,7 +142,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = q.from_user.id
 
     if q.data == "start_btn":
-        await q.message.reply_text("🌍 Alege limba:", reply_markup=lang_menu)
+        await q.message.reply_text("🌍 Alege limba / Выберите язык:", reply_markup=lang_menu)
 
     elif q.data == "btc":
         user_step[user_id] = "WAIT_ADDRESS"
@@ -143,11 +169,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=ADMIN_ID,
             text=(
                 f"💰 COMANDĂ NOUĂ\n\n"
-                f"👤 User: {username}\n"
-                f"🆔 ID: {user_id}\n\n"
+                f"👤 {username}\n"
+                f"🆔 {user_id}\n\n"
                 f"{data['amount']} {data['crypto']}\n"
-                f"≈ {data['lei']:.2f} MDL\n\n"
-                f"📩 Adresă:\n{data['address']}"
+                f"{data['lei']:.2f} MDL\n\n"
+                f"{data['address']}"
             ),
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -155,10 +181,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif q.data.startswith("sendtx_"):
         target_user = int(q.data.split("_")[1])
         user_step[ADMIN_ID] = f"SEND_TX_{target_user}"
-        await q.message.reply_text("✏️ Trimite TXID sau link blockchain:")
+        await q.message.reply_text("✏️ Trimite TXID/link:")
+        
 
-
-# 💳 START PLATĂ
+# 💳 PLATĂ
 async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
@@ -179,16 +205,13 @@ async def payments(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     db = load_db()
-    uid = str(user_id)
-
-    data = db.get(uid, [])
+    data = db.get(str(user_id), [])
 
     if not data:
         await update.message.reply_text(t(user_id, "history_empty"))
         return
 
     msg = "📜 Istoric:\n\n"
-
     for p in data[-10:]:
         msg += f"{p['amount']} {p['crypto']} → {p['lei']:.2f} MDL\n"
 
@@ -211,32 +234,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(TEXTS["ru"]["menu"], reply_markup=menu_ru)
         return
 
-    # meniu RO
-    if text == "💳 Schimb Crypto" or text == "💳 Обмен крипто":
+    # meniu
+    if text in ["💳 Schimb Crypto", "💳 Обмен крипто"]:
         await payments(update, context)
         return
 
-    if text == "📜 Istoric" or text == "📜 История":
+    if text in ["📜 Istoric", "📜 История"]:
         await history(update, context)
         return
 
-    # ADMIN TRIMITE TXID
+    if text in ["ℹ️ Info", "ℹ️ Инфо"]:
+        await update.message.reply_text(t(user_id, "info"))
+        return
+
+    if text in ["📞 Suport", "📞 Поддержка"]:
+        await update.message.reply_text(t(user_id, "support"))
+        return
+
+    # ADMIN TXID
     if user_id == ADMIN_ID and user_step.get(user_id, "").startswith("SEND_TX_"):
         target_user = int(user_step[user_id].split("_")[2])
 
-        tx_link = text
-
         await context.bot.send_message(
             chat_id=target_user,
-            text=f"✅ Transfer trimis!\n\n🔗 Link:\n{tx_link}"
+            text=f"✅ Transfer trimis!\n\n🔗 {text}"
         )
 
-        await update.message.reply_text("✅ Trimis către client")
-
+        await update.message.reply_text("✅ Trimis")
         user_step.pop(user_id)
         return
 
-    # PAS 1
+    # PAS
     if user_step.get(user_id) == "WAIT_ADDRESS":
         try:
             parts = text.split()
@@ -277,10 +305,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         db = load_db()
         uid = str(user_id)
-
         if uid not in db:
             db[uid] = []
-
         db[uid].append(user_data_temp[user_id])
         save_db(db)
 
